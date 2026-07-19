@@ -1,8 +1,8 @@
 """
-AI PowerPoint Prompt Generator — Flask Backend (Production-Ready)
+AI PowerPoint Prompt Generator — FastAPI Backend (Production-Ready)
 
-Dev:        python app.py
-Production: gunicorn --bind 0.0.0.0:$PORT --workers 1 --threads 2 --timeout 600 app:app
+Dev:        uvicorn app:app --reload
+Production: uvicorn app:app --host 0.0.0.0 --port $PORT
 """
 
 import os
@@ -10,10 +10,12 @@ import time
 import logging
 from pathlib import Path
 
-from flask import Flask, request, jsonify
-from flask_cors import CORS
+from fastapi import FastAPI, Request, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
+# pyrefly: ignore [missing-import]
 from peft import PeftModel
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -26,12 +28,16 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Config  (all overridable via environment variables on Render)
+# Config  (all overridable via environment variables on Render or HF)
 # ─────────────────────────────────────────────────────────────────────────────
-# Adapter files live one level above backend/ in the repo root
-ADAPTER_DIR = Path(
-    os.environ.get("ADAPTER_DIR", Path(__file__).parent.parent)
-).resolve()
+# If running on Hugging Face Spaces, files are flattened in the root directory.
+# Locally, adapter files live one level above backend/
+if "SPACE_ID" in os.environ:
+    default_adapter_dir = Path(__file__).parent
+else:
+    default_adapter_dir = Path(__file__).parent.parent
+
+ADAPTER_DIR = Path(os.environ.get("ADAPTER_DIR", default_adapter_dir)).resolve()
 
 BASE_MODEL_ID = os.environ.get("BASE_MODEL_ID", "Qwen/Qwen2.5-0.5B-Instruct")
 
@@ -137,54 +143,66 @@ def generate_response(data: dict) -> str:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# Flask application
+# FastAPI application
 # ─────────────────────────────────────────────────────────────────────────────
-app = Flask(__name__)
-CORS(app, resources={r"/*": {"origins": CORS_ORIGINS}})
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=CORS_ORIGINS,
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 
-@app.route("/health", methods=["GET"])
+@app.get("/health")
 def health():
-    return jsonify({
+    return {
         "status": "running",
         "model": "loaded" if model_loaded else ("error" if load_error else "loading"),
         "load_error": load_error,
         "device": DEVICE,
         "base_model": BASE_MODEL_ID,
-    })
+    }
 
 
-@app.route("/chat", methods=["POST", "OPTIONS"])
-def chat():
-    if request.method == "OPTIONS":
-        return jsonify({}), 200
-
+@app.post("/chat")
+async def chat(request: Request):
     if not model_loaded:
-        return jsonify({
-            "success": False,
-            "error": load_error or "Model is still loading. Please wait."
-        }), 503
-
-    data = request.get_json(silent=True)
-    if not data:
-        return jsonify({"success": False, "error": "Invalid JSON body."}), 400
-    if "message" not in data and "messages" not in data:
-        return jsonify({"success": False, "error": "'message' or 'messages' required."}), 400
-    if "message" in data and not str(data["message"]).strip():
-        return jsonify({"success": False, "error": "Message cannot be empty."}), 400
+        return JSONResponse(
+            status_code=503,
+            content={
+                "success": False,
+                "error": load_error or "Model is still loading. Please wait."
+            }
+        )
 
     try:
-        return jsonify({"success": True, "response": generate_response(data)})
+        data = await request.json()
+    except Exception:
+        return JSONResponse(status_code=400, content={"success": False, "error": "Invalid JSON body."})
+        
+    if not data:
+        return JSONResponse(status_code=400, content={"success": False, "error": "Invalid JSON body."})
+    if "message" not in data and "messages" not in data:
+        return JSONResponse(status_code=400, content={"success": False, "error": "'message' or 'messages' required."})
+    if "message" in data and not str(data["message"]).strip():
+        return JSONResponse(status_code=400, content={"success": False, "error": "Message cannot be empty."})
+
+    try:
+        return {"success": True, "response": generate_response(data)}
     except Exception as exc:
         logger.exception("Generation error")
-        return jsonify({"success": False, "error": str(exc)}), 500
+        return JSONResponse(status_code=500, content={"success": False, "error": str(exc)})
 
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Startup — load model before accepting requests
 # ─────────────────────────────────────────────────────────────────────────────
-load_model()   # runs on import (works for both gunicorn and direct python)
+load_model()   # runs on import 
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=False)
+    import uvicorn
+    port = int(os.environ.get("PORT", 7860))
+    uvicorn.run(app, host="0.0.0.0", port=port)
