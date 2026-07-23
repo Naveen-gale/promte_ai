@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
-# pyrefly: ignore [missing-import]
+# pyright: ignore [missing-import]
 from peft import PeftModel
 
 # ─────────────────────────────────────────────────────────────────────────────

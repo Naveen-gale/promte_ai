@@ -2,7 +2,7 @@ import axios from 'axios'
 
 /**
  * Base URL resolution:
- *   - Development  → Vite proxy  →  /api  →  http://localhost:5000
+ *   - Development  → Vite proxy  →  /api  →  http://localhost:7860
  *   - Production   → set VITE_API_URL in Vercel env vars to your Render URL
  *                    e.g. https://your-backend.onrender.com
  */

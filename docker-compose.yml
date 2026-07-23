@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  backend:
+    build: .
+    ports:
+      - "7860:7860"
+    environment:
+      - PORT=7860
+      - DEVICE=cpu # Use 'cuda' if GPU is available and configured
+    volumes:
+      - ./backend:/app/backend
+    restart: unless-stopped
+
+  frontend:
+    image: node:20-alpine
+    working_dir: /app/frontend
+    command: npm run dev -- --host 0.0.0.0
+    ports:
+      - "5173:5173"
+    volumes:
+      - ./frontend:/app/frontend
+      - /app/frontend/node_modules
+    environment:
+      - VITE_API_URL=http://localhost:7860
+    depends_on:
+      - backend
+    restart: unless-stopped
