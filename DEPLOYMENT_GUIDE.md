@@ -1,79 +1,65 @@
-# Prompte AI Deployment Guide
+# Prompte AI Deployment Guide (All 100% Free Alternatives)
 
-This guide covers how to deploy your AI PowerPoint Prompt Generator to the web. Since PyTorch/Hugging Face models require significant memory and long-running processes, the standard approach is to split the deployment:
+Because AI models require at least **1.5GB to 2GB of RAM** to load into memory, standard free hosts (like Render, Heroku, Railway) which only offer 512MB will crash instantly. Hugging Face Spaces also recently started charging for Python apps.
 
-- **Frontend (React/Vite)**: Deployed to **Vercel** (Optimized for fast static hosting).
-- **Backend (FastAPI)**: Deployed to **Render** (Optimized for running Python servers and AI models).
-
----
-
-## Part 1: Deploying the Backend to Render
-
-*Note: Vercel serverless functions have strict timeout (10s) and memory (250MB) limits, so they cannot run a PyTorch model. Render is perfect for this.*
-
-### 1. Push to GitHub
-Ensure your latest code (including the updated `app.py`) is committed and pushed to a GitHub repository.
-
-### 2. Create a Web Service on Render
-1. Go to your [Render Dashboard](https://dashboard.render.com/) and click **New** > **Web Service**.
-2. Connect your GitHub account and select your repository.
-3. Configure the service:
-   - **Name**: `prompte-ai-backend` (or similar)
-   - **Root Directory**: `backend`
-   - **Environment**: `Python`
-   - **Build Command**: `pip install -r requirements.txt`
-   - **Start Command**: `uvicorn app:app --host 0.0.0.0 --port $PORT`
-4. **Instance Type**: 
-   - The `Qwen2.5-0.5B-Instruct` model requires about 1.5GB to 2GB of RAM.
-   - The free tier (512MB RAM) will likely crash with an Out Of Memory (OOM) error. You should select the **Starter ($7/mo)** or **Standard** tier which provides enough RAM to load the AI model.
-
-### 3. Add Environment Variables
-Scroll down to **Environment Variables** and add the following:
-- `PYTHON_VERSION` = `3.10` (Forces Render to use a modern Python version)
-- `BASE_MODEL_ID` = `Qwen/Qwen2.5-0.5B-Instruct`
-- `ADAPTER_ID` = `n99av80n/ppt-prompt-model`
-- `CORS_ORIGINS` = `*` *(You can restrict this to your Vercel domain later for security)*
-
-### 4. Deploy
-Click **Create Web Service**. 
-- Render will install PyTorch and Transformers (this may take a few minutes).
-- Once it says **Live**, copy your backend URL (e.g., `https://prompte-ai-backend.onrender.com`).
-- Test it by visiting `https://your-url.onrender.com/health` in your browser.
+If you don't want to pay, here are the **top 5 completely free alternatives** in existence for hosting high-memory Python applications.
 
 ---
 
-## Part 2: Deploying the Frontend to Vercel
-
-### 1. Configure the API URL
-Before deploying to Vercel, make sure your frontend is configured to talk to your new Render backend instead of `localhost`.
-- If you use `.env` variables (like `VITE_API_URL`), you will configure that in Vercel.
-- If it's hardcoded in your frontend files (like `src/hooks/useChat.js`), make sure it points to the Render URL or reads from an environment variable.
-
-### 2. Create a Project on Vercel
-1. Go to your [Vercel Dashboard](https://vercel.com/dashboard) and click **Add New** > **Project**.
-2. Import the exact same GitHub repository.
-3. Configure the project:
-   - **Project Name**: `prompte-ai`
-   - **Framework Preset**: `Vite` (Vercel should auto-detect this).
-   - **Root Directory**: Click **Edit**, select `frontend`, and save.
-   - **Build Command**: `npm run build`
-   - **Output Directory**: `dist`
-
-### 3. Add Environment Variables
-If your frontend relies on an environment variable for the backend URL, add it here:
-- **Key**: `VITE_API_URL` (or whatever variable you use)
-- **Value**: `https://prompte-ai-backend.onrender.com` (Your Render URL)
-
-### 4. Deploy
-Click **Deploy**. 
-Vercel will quickly build your frontend and assign it a live URL.
+## 1. Oracle Cloud "Always Free" Tier (The Best 24/7 Option)
+Oracle Cloud gives you a permanent **ARM server with 24GB of RAM and 4 CPUs completely for free, forever.**
+- **Pros**: It runs 24/7, gives you a permanent public IP address, and has huge amounts of RAM.
+- **Cons**: Registration is notoriously strict (requires credit card verification to block bots), and you have to configure the Linux server via the command line yourself.
 
 ---
 
-## Part 3: Final Verification
+## 2. GitHub Codespaces (The Easiest Temporary Cloud)
+Every GitHub user gets **120 free core-hours per month** of GitHub Codespaces. It gives you a powerful Linux machine (8GB RAM) directly in your browser.
+- **Pros**: 8GB RAM, instant setup, no credit card required, and GitHub automatically provides a public URL for your running backend.
+- **Cons**: You are limited to 120 hours per month (about 5 days of 24/7 uptime). When you close the browser, the server shuts down to save your hours.
+- **How to use**: 
+  1. Go to your GitHub repository and click the green **Code** button.
+  2. Switch to the **Codespaces** tab and click **Create codespace**.
+  3. Once the VS Code editor loads in your browser, open the terminal and run: 
+     `pip install -r requirements.txt` and `uvicorn app:app --host 0.0.0.0 --port 8000`.
+  4. GitHub will show a pop-up saying "Your application running on port 8000 is available". Click the link, make it public, and use that URL in your Vercel frontend!
 
-1. Open your new Vercel URL.
-2. Send a test message to generate a PowerPoint prompt.
-3. **Important Note on First Run**: The very first request will take longer (sometimes 30-60 seconds) because the Render backend will download the Qwen model and your LoRA adapter from Hugging Face into memory. Subsequent requests will be much faster.
+---
 
-If you encounter issues, check the **Logs** tab in your Render dashboard—it will show the model downloading and any errors if they occur!
+## 3. Lightning AI Studios (The Developer Option)
+Lightning AI provides a generous free tier for developers, giving you **16GB of RAM** on their basic CPU instances.
+- **Pros**: Massive 16GB RAM, persistent file storage (it saves your downloaded models unlike Colab).
+- **Cons**: It "sleeps" when you aren't actively using it. You have to open their dashboard to wake it up.
+- **How to use**: Sign up at [Lightning.ai](https://lightning.ai), start a new "Studio", open a terminal, install your requirements, and use a tool like `localtunnel` or `ngrok` to get a public URL.
+
+---
+
+## 4. Google Colab + Cloudflare Tunnel (The Free GPU Option)
+Google gives away free **12GB RAM servers with GPUs**.
+- **Pros**: Generates text extremely fast because it uses a GPU. No account setup required.
+- **Cons**: Ephemeral (it deletes your files when you close the tab), and you have to change your frontend URL every time you run it.
+- **How to use**: 
+  Paste this into a Colab cell, select a T4 GPU, and click Run:
+  ```python
+  !git clone YOUR_GITHUB_REPO_URL
+  %cd prompte_ai/backend
+  !pip install -r requirements.txt
+  !npm install -g localtunnel
+  import subprocess, time
+  subprocess.Popen(["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"])
+  time.sleep(5)
+  !lt --port 8000
+  ```
+  It will print a public URL (e.g., `https://crazy-frogs.loca.lt`) that you can plug into your Vercel frontend.
+
+---
+
+## 5. Host on Your Own PC (The "Always Free" Local Tunnel)
+Since you are already running the backend perfectly on your own Windows computer, you can just keep running it there and expose it to the internet securely!
+- **Pros**: Infinite limits (depends on your PC), 100% free forever, no cloud restrictions.
+- **Cons**: Your computer must be turned on and connected to the internet for the app to work.
+- **How to use**: 
+  1. Start your backend on your PC like normal (`uvicorn app:app --port 8000`).
+  2. Download [Cloudflare tunnel](https://developers.cloudflare.com/cloudflare-one/connections/connect-networks/do-more-with-tunnels/trycloudflare/) or [ngrok](https://ngrok.com/).
+  3. Run the command: `ngrok http 8000` (or `cloudflared tunnel --url http://localhost:8000`).
+  4. It will give you a public URL (like `https://1234abcd.ngrok-free.app`). Put this URL into your Vercel frontend!
