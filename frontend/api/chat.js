@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ success: false, error: "'message' or 'messages' required." })
   }
 
-  const MODEL_ID = process.env.HF_MODEL_ID || "Qwen/Qwen2.5-0.5B-Instruct"
+  const MODEL_ID = process.env.HF_MODEL_ID || "Qwen/Qwen2.5-1.5B-Instruct"
   const HF_TOKEN = process.env.HF_TOKEN
 
   if (!HF_TOKEN) {
@@ -36,8 +36,8 @@ export default async function handler(req, res) {
     ];
   }
 
-  // Use OpenAI-compatible Chat Completions endpoint at router.huggingface.co
-  // This works with any HF model and avoids the "not supported by hf-inference" error.
+  // Use HF's own inference server via router (hf-inference provider)
+  // This does NOT require enabling third-party providers in HF settings
   const body = JSON.stringify({
     model: MODEL_ID,
     messages: messages,
@@ -47,13 +47,12 @@ export default async function handler(req, res) {
   });
 
   try {
-    // Use Node's raw https module with family:4 to force IPv4 and fix Vercel ENOTFOUND bug
     const result = await new Promise((resolve, reject) => {
       const options = {
         hostname: 'router.huggingface.co',
-        path: '/v1/chat/completions',
+        path: '/hf-inference/v1/chat/completions', // <-- HF's own servers, no 3rd party needed
         method: 'POST',
-        family: 4, // FORCE IPv4 — prevents ENOTFOUND DNS bug on Vercel
+        family: 4, // FORCE IPv4 — fixes ENOTFOUND on Vercel
         headers: {
           'Authorization': `Bearer ${HF_TOKEN}`,
           'Content-Type': 'application/json',
