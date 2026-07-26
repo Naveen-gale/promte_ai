@@ -1,3 +1,5 @@
+import axios from 'axios';
+
 export default async function handler(req, res) {
   // 1. Handle CORS for Vercel
   res.setHeader('Access-Control-Allow-Credentials', true)
@@ -47,15 +49,11 @@ export default async function handler(req, res) {
   }
   prompt += "<|im_start|>assistant\n";
 
-  // 4. Call Hugging Face Serverless API
+  // 4. Call Hugging Face Serverless API using Axios to avoid Vercel DNS bugs
   try {
-    const response = await fetch(`https://api-inference.huggingface.co/models/${MODEL_ID}`, {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${HF_TOKEN}`,
-        "Content-Type": "application/json"
-      },
-      body: JSON.stringify({
+    const response = await axios.post(
+      `https://api-inference.huggingface.co/models/${MODEL_ID}`,
+      {
         inputs: prompt,
         parameters: {
           max_new_tokens: data.max_tokens || 1024,
@@ -63,27 +61,34 @@ export default async function handler(req, res) {
           top_p: data.top_p || 0.9,
           return_full_text: false,
         }
-      })
-    });
+      },
+      {
+        headers: {
+          "Authorization": `Bearer ${HF_TOKEN}`,
+          "Content-Type": "application/json"
+        }
+      }
+    );
 
-    if (!response.ok) {
-      const errorText = await response.text();
-      console.error("HF API Error:", errorText);
-      if (response.status === 503) {
+    const result = response.data;
+    const generatedText = result[0]?.generated_text || "";
+    
+    return res.status(200).json({ success: true, response: generatedText.trim() });
+  } catch (error) {
+    console.error("HF API Error:", error.message);
+    
+    // Handle specific Hugging Face HTTP errors
+    if (error.response) {
+      if (error.response.status === 503) {
         return res.status(503).json({ 
           success: false, 
           error: "Model is loading on Hugging Face. Please try again in 20 seconds." 
         });
       }
-      return res.status(500).json({ success: false, error: "Hugging Face API Error" });
+      console.error("HF API Response Data:", error.response.data);
+      return res.status(500).json({ success: false, error: "Hugging Face API Error: " + JSON.stringify(error.response.data) });
     }
-
-    const result = await response.json();
-    const generatedText = result[0]?.generated_text || "";
     
-    return res.status(200).json({ success: true, response: generatedText.trim() });
-  } catch (error) {
-    console.error("Fetch Error:", error);
     return res.status(500).json({ success: false, error: error.message });
   }
 }
