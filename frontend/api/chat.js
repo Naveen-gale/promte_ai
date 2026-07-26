@@ -53,7 +53,7 @@ export default async function handler(req, res) {
   // 4. Call Hugging Face Serverless API using Axios with forced IPv4
   try {
     const response = await axios.post(
-      `https://api-inference.huggingface.co/models/${MODEL_ID}`,
+      `https://router.huggingface.co/hf-inference/models/${MODEL_ID}`,
       {
         inputs: prompt,
         parameters: {
