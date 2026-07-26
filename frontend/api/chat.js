@@ -1,20 +1,13 @@
-import axios from 'axios';
 import https from 'https';
 
 export default async function handler(req, res) {
-  // 1. Handle CORS for Vercel
+  // CORS headers
   res.setHeader('Access-Control-Allow-Credentials', true)
   res.setHeader('Access-Control-Allow-Origin', '*')
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT')
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
-  )
+  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,POST')
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end()
-  }
-
+  if (req.method === 'OPTIONS') return res.status(200).end()
   if (req.method !== 'POST') {
     return res.status(405).json({ success: false, error: 'Method Not Allowed' })
   }
@@ -24,7 +17,6 @@ export default async function handler(req, res) {
     return res.status(400).json({ success: false, error: "'message' or 'messages' required." })
   }
 
-  // 2. Fetch Environment Variables
   const MODEL_ID = process.env.HF_MODEL_ID || "n99av80n/ppt-prompt-model-merged"
   const HF_TOKEN = process.env.HF_TOKEN
 
@@ -32,65 +24,74 @@ export default async function handler(req, res) {
     return res.status(500).json({ success: false, error: "HF_TOKEN environment variable is missing on Vercel." })
   }
 
-  // 3. Format Messages for Qwen
+  // Build messages array (OpenAI format)
   let messages = data.messages || [{ role: "user", content: data.message }];
-  if (messages[0]?.role !== "system") {
+  if (!messages[0] || messages[0].role !== "system") {
     messages = [
-      { 
-        role: "system", 
-        content: "You are an expert PowerPoint presentation designer. Generate a detailed, professional, and structured PowerPoint presentation prompt with slide-by-slide breakdown, design requirements, visual descriptions, and speaker notes." 
+      {
+        role: "system",
+        content: "You are an expert PowerPoint presentation designer. Generate a detailed, professional, and structured PowerPoint presentation prompt with slide-by-slide breakdown, design requirements, visual descriptions, and speaker notes."
       },
       ...messages
     ];
   }
 
-  let prompt = "";
-  for (const msg of messages) {
-    prompt += `<|im_start|>${msg.role}\n${msg.content}<|im_end|>\n`;
-  }
-  prompt += "<|im_start|>assistant\n";
+  // Use OpenAI-compatible Chat Completions endpoint at router.huggingface.co
+  // This works with any HF model and avoids the "not supported by hf-inference" error.
+  const body = JSON.stringify({
+    model: MODEL_ID,
+    messages: messages,
+    max_tokens: data.max_tokens || 1024,
+    temperature: data.temperature || 0.7,
+    top_p: data.top_p || 0.9,
+  });
 
-  // 4. Call Hugging Face Serverless API using Axios with forced IPv4
   try {
-    const response = await axios.post(
-      `https://router.huggingface.co/hf-inference/models/${MODEL_ID}`,
-      {
-        inputs: prompt,
-        parameters: {
-          max_new_tokens: data.max_tokens || 1024,
-          temperature: data.temperature || 0.7,
-          top_p: data.top_p || 0.9,
-          return_full_text: false,
-        }
-      },
-      {
+    // Use Node's raw https module with family:4 to force IPv4 and fix Vercel ENOTFOUND bug
+    const result = await new Promise((resolve, reject) => {
+      const options = {
+        hostname: 'router.huggingface.co',
+        path: '/v1/chat/completions',
+        method: 'POST',
+        family: 4, // FORCE IPv4 — prevents ENOTFOUND DNS bug on Vercel
         headers: {
-          "Authorization": `Bearer ${HF_TOKEN}`,
-          "Content-Type": "application/json"
-        },
-        httpsAgent: new https.Agent({ family: 4 }) // FORCE IPv4 to fix Vercel DNS bug
-      }
-    );
+          'Authorization': `Bearer ${HF_TOKEN}`,
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(body),
+        }
+      };
 
-    const result = response.data;
-    const generatedText = result[0]?.generated_text || "";
-    
-    return res.status(200).json({ success: true, response: generatedText.trim() });
-  } catch (error) {
-    console.error("HF API Error:", error.message);
-    
-    // Handle specific Hugging Face HTTP errors
-    if (error.response) {
-      if (error.response.status === 503) {
-        return res.status(503).json({ 
-          success: false, 
-          error: "Model is loading on Hugging Face. Please try again in 20 seconds." 
+      const req_hf = https.request(options, (resp) => {
+        let raw = '';
+        resp.on('data', chunk => raw += chunk);
+        resp.on('end', () => {
+          try {
+            resolve({ status: resp.statusCode, data: JSON.parse(raw) });
+          } catch {
+            resolve({ status: resp.statusCode, data: raw });
+          }
         });
-      }
-      console.error("HF API Response Data:", error.response.data);
-      return res.status(500).json({ success: false, error: "Hugging Face API Error: " + JSON.stringify(error.response.data) });
+      });
+
+      req_hf.on('error', reject);
+      req_hf.write(body);
+      req_hf.end();
+    });
+
+    if (result.status === 503) {
+      return res.status(503).json({ success: false, error: "Model is loading on Hugging Face. Please try again in 20 seconds." });
     }
-    
+
+    if (result.status !== 200) {
+      console.error("HF Error:", result.data);
+      return res.status(500).json({ success: false, error: "Hugging Face API Error: " + JSON.stringify(result.data) });
+    }
+
+    const generatedText = result.data?.choices?.[0]?.message?.content || "";
+    return res.status(200).json({ success: true, response: generatedText.trim() });
+
+  } catch (error) {
+    console.error("Request Error:", error.message);
     return res.status(500).json({ success: false, error: error.message });
   }
 }
