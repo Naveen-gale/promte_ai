@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ success: false, error: "'message' or 'messages' required." })
   }
 
-  const MODEL_ID = process.env.HF_MODEL_ID || "Qwen/Qwen2.5-1.5B-Instruct"
+  const MODEL_ID = process.env.HF_MODEL_ID || "Qwen/Qwen2.5-7B-Instruct"
   const HF_TOKEN = process.env.HF_TOKEN
 
   if (!HF_TOKEN) {
@@ -50,7 +50,7 @@ export default async function handler(req, res) {
     const result = await new Promise((resolve, reject) => {
       const options = {
         hostname: 'router.huggingface.co',
-        path: '/hf-inference/v1/chat/completions', // <-- HF's own servers, no 3rd party needed
+        path: '/v1/chat/completions', // generic router → routes through Novita AI (enabled in HF settings)
         method: 'POST',
         family: 4, // FORCE IPv4 — fixes ENOTFOUND on Vercel
         headers: {
