@@ -7,7 +7,6 @@ import {
   RiFileCopyLine, RiCheckLine, RiDownloadLine, RiRefreshLine
 } from 'react-icons/ri'
 
-// ── Elapsed time counter shown while generating ────────────────────────────
 function ElapsedTimer() {
   const [seconds, setSeconds] = useState(0)
   useEffect(() => {
@@ -23,7 +22,6 @@ function ElapsedTimer() {
   )
 }
 
-// ── Main bubble component ──────────────────────────────────────────────────
 export default function MessageBubble({ message, onRegenerate }) {
   const isUser = message.role === 'user'
   const isGenerating = message.isGenerating
@@ -56,85 +54,118 @@ export default function MessageBubble({ message, onRegenerate }) {
     URL.revokeObjectURL(url)
   }
 
-  const actionBtnClass = "p-1.5 text-slate-400 hover:text-white rounded hover:bg-white/10 transition-colors"
+  const actionBtnClass = "p-1.5 text-slate-500 hover:text-slate-200 rounded-lg hover:bg-white/8 transition-all duration-200"
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 10, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
+      initial={{ opacity: 0, y: 12 }}
+      animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: 'easeOut' }}
-      className={`flex w-full py-6 ${isUser ? 'justify-end' : 'justify-start bg-white/[0.02]'}`}
+      className={`flex w-full py-5 ${isUser ? '' : ''}`}
+      style={
+        !isUser
+          ? {
+              background: 'rgba(255,255,255,0.018)',
+              borderTop: '1px solid rgba(255,255,255,0.04)',
+              borderBottom: '1px solid rgba(255,255,255,0.04)',
+            }
+          : {}
+      }
     >
-      <div className={`flex max-w-4xl w-full mx-auto px-4 gap-4 sm:gap-6 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
+      <div className={`flex max-w-3xl w-full mx-auto px-4 sm:px-8 gap-4 ${isUser ? 'flex-row-reverse' : 'flex-row'}`}>
 
         {/* Avatar */}
-        <div className={`w-8 h-8 sm:w-10 sm:h-10 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg ${
-          isUser
-            ? 'bg-gradient-to-br from-slate-600 to-slate-700'
-            : 'bg-gradient-to-br from-violet-600 to-cyan-500 glow-violet'
-        }`}>
+        <div
+          className={`w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0 shadow-lg`}
+          style={
+            isUser
+              ? {
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(255,255,255,0.1)',
+                }
+              : {
+                  background: 'linear-gradient(135deg, #7c3aed, #06b6d4)',
+                  boxShadow: '0 0 20px rgba(124,58,237,0.35)',
+                }
+          }
+        >
           {isUser ? (
-            <RiUser3Line className="text-white text-lg" />
+            <RiUser3Line className="text-slate-300 text-base" />
           ) : (
-            <RiSparklingFill className={`text-white text-lg ${isGenerating ? 'animate-pulse' : ''}`} />
+            <RiSparklingFill className={`text-white text-base ${isGenerating ? 'animate-pulse' : ''}`} />
           )}
         </div>
 
         {/* Content */}
         <div className={`flex flex-col flex-1 min-w-0 ${isUser ? 'items-end' : 'items-start'}`}>
-          <div className="flex items-baseline gap-2 mb-1.5">
-            <span className="font-semibold text-slate-200">{isUser ? 'You' : 'AI PPT Generator'}</span>
+          <div className="flex items-baseline gap-2 mb-2">
+            <span className="font-semibold text-sm text-slate-300">
+              {isUser ? 'You' : 'Prompte AI'}
+            </span>
           </div>
 
-          <div className={`w-full ${isUser ? 'max-w-2xl bg-white/5 rounded-2xl rounded-tr-sm px-5 py-3.5 text-slate-200' : 'prose-container'}`}>
-            {isGenerating ? (
-              /* ── Loading state: spinner + live elapsed timer ── */
+          <div className={`w-full ${isUser ? 'max-w-xl' : 'w-full'}`}>
+            {isUser ? (
+              /* User bubble — glass pill */
+              <div
+                className="inline-block px-5 py-3 rounded-2xl rounded-tr-sm text-slate-200 text-base leading-relaxed whitespace-pre-wrap max-w-full"
+                style={{
+                  background: 'rgba(124,58,237,0.12)',
+                  border: '1px solid rgba(124,58,237,0.2)',
+                  backdropFilter: 'blur(12px)',
+                }}
+              >
+                {message.content}
+              </div>
+            ) : isGenerating ? (
+              /* Loading state */
               <div className="flex flex-col gap-3 py-2">
-                <div className="flex items-center gap-3 text-violet-400 font-medium">
+                <div className="flex items-center gap-3 text-violet-400 font-medium text-sm">
                   <motion.div
                     animate={{ rotate: 360 }}
                     transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
-                    className="w-5 h-5 border-2 border-violet-500/30 border-t-violet-400 rounded-full flex-shrink-0"
+                    className="w-4 h-4 border-2 border-violet-500/30 border-t-violet-400 rounded-full flex-shrink-0"
                   />
                   <span>Generating your presentation prompt…</span>
                   <ElapsedTimer />
                 </div>
-                {/* Skeleton loading bars */}
                 <div className="space-y-2 mt-1">
-                  {[90, 70, 85, 60].map((w, i) => (
+                  {[85, 70, 90, 55].map((w, i) => (
                     <motion.div
                       key={i}
-                      className="h-2.5 bg-white/10 rounded-full"
-                      style={{ width: `${w}%` }}
-                      animate={{ opacity: [0.4, 0.8, 0.4] }}
-                      transition={{ duration: 1.5, repeat: Infinity, delay: i * 0.2 }}
+                      className="h-2 rounded-full"
+                      style={{
+                        width: `${w}%`,
+                        background: 'rgba(124,58,237,0.15)',
+                      }}
+                      animate={{ opacity: [0.3, 0.7, 0.3] }}
+                      transition={{ duration: 1.6, repeat: Infinity, delay: i * 0.25 }}
                     />
                   ))}
                 </div>
-                <p className="text-xs text-slate-500 mt-1">
+                <p className="text-xs text-slate-600 mt-1">
                   ⏱️ CPU inference can take 3–5 minutes. Please wait…
                 </p>
               </div>
-            ) : isUser ? (
-              <div className="whitespace-pre-wrap">{message.content}</div>
             ) : (
+              /* AI response */
               <div className="output-prose w-full">
                 <ReactMarkdown remarkPlugins={[remarkGfm]}>{message.content}</ReactMarkdown>
               </div>
             )}
           </div>
 
-          {/* AI Actions (only shown after generation is done) */}
+          {/* Action buttons */}
           {!isUser && !isGenerating && message.content && (
-            <div className="flex items-center gap-1 mt-3">
-              <button onClick={handleCopy} className={actionBtnClass} title="Copy to clipboard">
-                {copied ? <RiCheckLine className="text-green-400" /> : <RiFileCopyLine />}
+            <div className="flex items-center gap-0.5 mt-3">
+              <button onClick={handleCopy} className={actionBtnClass} title="Copy">
+                {copied ? <RiCheckLine className="text-emerald-400" /> : <RiFileCopyLine />}
               </button>
               <button onClick={handleDownloadTxt} className={actionBtnClass} title="Download TXT">
                 <RiDownloadLine />
               </button>
               {onRegenerate && (
-                <button onClick={onRegenerate} className={actionBtnClass} title="Regenerate response">
+                <button onClick={onRegenerate} className={actionBtnClass} title="Regenerate">
                   <RiRefreshLine />
                 </button>
               )}
