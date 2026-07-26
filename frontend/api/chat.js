@@ -1,4 +1,5 @@
 import axios from 'axios';
+import https from 'https';
 
 export default async function handler(req, res) {
   // 1. Handle CORS for Vercel
@@ -49,7 +50,7 @@ export default async function handler(req, res) {
   }
   prompt += "<|im_start|>assistant\n";
 
-  // 4. Call Hugging Face Serverless API using Axios to avoid Vercel DNS bugs
+  // 4. Call Hugging Face Serverless API using Axios with forced IPv4
   try {
     const response = await axios.post(
       `https://api-inference.huggingface.co/models/${MODEL_ID}`,
@@ -66,7 +67,8 @@ export default async function handler(req, res) {
         headers: {
           "Authorization": `Bearer ${HF_TOKEN}`,
           "Content-Type": "application/json"
-        }
+        },
+        httpsAgent: new https.Agent({ family: 4 }) // FORCE IPv4 to fix Vercel DNS bug
       }
     );
 
