@@ -31,22 +31,16 @@ logger = logging.getLogger(__name__)
 # Config  (all overridable via environment variables on Render or HF)
 # ─────────────────────────────────────────────────────────────────────────────
 # If running on Hugging Face Spaces, files are flattened in the root directory.
-# Locally, adapter files live one level above backend/
-if "SPACE_ID" in os.environ:
-    default_adapter_dir = Path(__file__).parent
-else:
-    default_adapter_dir = Path(__file__).parent.parent
-
-ADAPTER_DIR = Path(os.environ.get("ADAPTER_DIR", default_adapter_dir)).resolve()
-
+# We no longer need local ADAPTER_DIR since we load from Hugging Face.
 BASE_MODEL_ID = os.environ.get("BASE_MODEL_ID", "Qwen/Qwen2.5-0.5B-Instruct")
+ADAPTER_ID = os.environ.get("ADAPTER_ID", "n99av80n/ppt-prompt-model")
 
 # CORS_ORIGINS: comma-separated list of allowed origins, or * for all
 _raw = os.environ.get("CORS_ORIGINS", "*")
 CORS_ORIGINS = [o.strip() for o in _raw.split(",")] if _raw != "*" else "*"
 
-logger.info(f"Adapter dir : {ADAPTER_DIR}")
 logger.info(f"Base model  : {BASE_MODEL_ID}")
+logger.info(f"Adapter ID  : {ADAPTER_ID}")
 logger.info(f"CORS origins: {CORS_ORIGINS}")
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -68,23 +62,25 @@ def load_model():
     """Load tokenizer, base model, apply LoRA adapter, merge and unload."""
     global tokenizer, model, model_loaded, load_error
     try:
-        logger.info("Loading tokenizer …")
+        logger.info(f"Loading tokenizer from {BASE_MODEL_ID} …")
         tokenizer = AutoTokenizer.from_pretrained(
-            str(ADAPTER_DIR), trust_remote_code=True
+            BASE_MODEL_ID, trust_remote_code=True
         )
 
         logger.info(f"Loading base model: {BASE_MODEL_ID} …")
         dtype = torch.float16 if DEVICE == "cuda" else torch.float32
-        base = AutoModelForCausalLM.from_pretrained(
+        base_model = AutoModelForCausalLM.from_pretrained(
             BASE_MODEL_ID,
-            torch_dtype=dtype,
+            dtype=dtype,
             device_map="auto" if DEVICE == "cuda" else None,
             trust_remote_code=True,
         )
 
-        logger.info("Applying LoRA adapter …")
+        logger.info(f"Applying LoRA adapter: {ADAPTER_ID} …")
         peft_model = PeftModel.from_pretrained(
-            base, str(ADAPTER_DIR), torch_dtype=dtype
+            base_model,
+            ADAPTER_ID,
+            dtype=dtype
         )
 
         logger.info("Merging LoRA weights …")
