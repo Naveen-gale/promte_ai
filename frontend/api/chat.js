@@ -17,7 +17,7 @@ export default async function handler(req, res) {
     return res.status(400).json({ success: false, error: "'message' or 'messages' required." })
   }
 
-  const MODEL_ID = process.env.HF_MODEL_ID || "n99av80n/ppt-prompt-model-merged"
+  const MODEL_ID = process.env.HF_MODEL_ID || "Qwen/Qwen2.5-0.5B-Instruct"
   const HF_TOKEN = process.env.HF_TOKEN
 
   if (!HF_TOKEN) {
