@@ -45,7 +45,7 @@ export default function TopBar({ onMenuClick }) {
                 backgroundClip: 'text',
               }}
             >
-              Prompte AI
+              akshu.ai
             </span>
             <span className="text-[10px] text-slate-500 font-medium tracking-widest uppercase mt-0.5">PPT Generator</span>
           </div>
