@@ -1,3 +1,17 @@
+---
+title: Ppt Prompt Backend
+emoji: 🐢
+colorFrom: green
+colorTo: purple
+sdk: gradio
+sdk_version: 6.25.0
+python_version: '3.12'
+app_file: app.py
+pinned: false
+---
+
+Check out the configuration reference at https://huggingface.co/docs/hub/spaces-config-reference
+
 # 🎯 AI PPT Generator
 
 A full-stack AI chatbot that generates professional PowerPoint presentation prompts using a fine-tuned **Qwen2.5-0.5B-Instruct** model with a custom LoRA adapter.
