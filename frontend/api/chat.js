@@ -17,7 +17,9 @@ export default async function handler(req, res) {
     return res.status(400).json({ success: false, error: "'message' or 'messages' required." })
   }
 
-  const MODEL_ID = process.env.HF_MODEL_ID || "Qwen/Qwen2.5-7B-Instruct"
+  // Keep the serverless fallback aligned with the model used by the LoRA adapter.
+  const MODEL_ID = process.env.HF_MODEL_ID || "Qwen/Qwen2.5-0.5B-Instruct"
+  const HF_PROVIDER = process.env.HF_PROVIDER
   const HF_TOKEN = process.env.HF_TOKEN
 
   if (!HF_TOKEN) {
@@ -36,14 +38,15 @@ export default async function handler(req, res) {
     ];
   }
 
-  // Use HF's own inference server via router (hf-inference provider)
-  // This does NOT require enabling third-party providers in HF settings
+  // The provider is optional: omit it to let Hugging Face choose an enabled
+  // provider, or set HF_PROVIDER in Vercel when a specific provider is needed.
   const body = JSON.stringify({
     model: MODEL_ID,
     messages: messages,
     max_tokens: data.max_tokens || 1024,
     temperature: data.temperature || 0.7,
     top_p: data.top_p || 0.9,
+    ...(HF_PROVIDER ? { provider: HF_PROVIDER } : {}),
   });
 
   try {
