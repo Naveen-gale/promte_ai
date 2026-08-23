@@ -18,7 +18,7 @@ export default async function handler(req, res) {
   }
 
   // Keep the serverless fallback aligned with the model used by the LoRA adapter.
-  const MODEL_ID = process.env.HF_MODEL_ID || "Qwen/Qwen2.5-0.5B-Instruct"
+  const MODEL_ID = process.env.HF_MODEL_ID || "Qwen/Qwen2.5-72B-Instruct"
   const HF_PROVIDER = process.env.HF_PROVIDER
   const HF_TOKEN = process.env.HF_TOKEN
 
