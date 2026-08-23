@@ -22,20 +22,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy backend code
 COPY app.py .
 
-# Copy LoRA adapter files from repo root (one level up — handled at build time)
-# These are COPY'd separately so Docker layer cache is efficient
-COPY adapter_config.json .
-COPY adapter_model.safetensors .
-COPY tokenizer.json .
-COPY tokenizer_config.json .
-COPY chat_template.jinja .
-
-# Point the app at the adapter files in the working directory
-ENV ADAPTER_DIR=/app
-ENV BASE_MODEL_ID=Qwen/Qwen2.5-0.5B-Instruct
-ENV CORS_ORIGINS=*
-
 # HF Spaces expects port 7860
 EXPOSE 7860
 
-CMD ["gunicorn", "--bind", "0.0.0.0:7860", "--workers", "1", "--threads", "2", "--timeout", "600", "app:app"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "7860"]

@@ -15,8 +15,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 import torch
 from transformers import AutoTokenizer, AutoModelForCausalLM
-# pyright: ignore [missing-import]
-from peft import PeftModel
 
 # ─────────────────────────────────────────────────────────────────────────────
 # Logging
@@ -31,16 +29,14 @@ logger = logging.getLogger(__name__)
 # Config  (all overridable via environment variables on Render or HF)
 # ─────────────────────────────────────────────────────────────────────────────
 # If running on Hugging Face Spaces, files are flattened in the root directory.
-# We no longer need local ADAPTER_DIR since we load from Hugging Face.
-BASE_MODEL_ID = os.environ.get("BASE_MODEL_ID", "Qwen/Qwen2.5-0.5B-Instruct")
-ADAPTER_ID = os.environ.get("ADAPTER_ID", "n99av80n/ppt-prompt-model")
+# We just use the fully merged model for production!
+MODEL_ID = os.environ.get("MODEL_ID", "n99av80n/ppt-prompt-model-merged")
 
 # CORS_ORIGINS: comma-separated list of allowed origins, or * for all
 _raw = os.environ.get("CORS_ORIGINS", "*")
 CORS_ORIGINS = [o.strip() for o in _raw.split(",")] if _raw != "*" else "*"
 
-logger.info(f"Base model  : {BASE_MODEL_ID}")
-logger.info(f"Adapter ID  : {ADAPTER_ID}")
+logger.info(f"Using model : {MODEL_ID}")
 logger.info(f"CORS origins: {CORS_ORIGINS}")
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -59,32 +55,25 @@ load_error: str | None = None
 
 
 def load_model():
-    """Load tokenizer, base model, apply LoRA adapter, merge and unload."""
+    """Load the fully merged model and tokenizer."""
     global tokenizer, model, model_loaded, load_error
     try:
-        logger.info(f"Loading tokenizer from {BASE_MODEL_ID} …")
+        logger.info(f"Loading tokenizer from {MODEL_ID} …")
         tokenizer = AutoTokenizer.from_pretrained(
-            BASE_MODEL_ID, trust_remote_code=True
+            MODEL_ID, trust_remote_code=True
         )
 
-        logger.info(f"Loading base model: {BASE_MODEL_ID} …")
+        logger.info(f"Loading merged model: {MODEL_ID} …")
         dtype = torch.float16 if DEVICE == "cuda" else torch.float32
-        base_model = AutoModelForCausalLM.from_pretrained(
-            BASE_MODEL_ID,
+        
+        # Load the merged model directly! No LoRA merging required!
+        model = AutoModelForCausalLM.from_pretrained(
+            MODEL_ID,
             dtype=dtype,
             device_map="auto" if DEVICE == "cuda" else None,
             trust_remote_code=True,
         )
 
-        logger.info(f"Applying LoRA adapter: {ADAPTER_ID} …")
-        peft_model = PeftModel.from_pretrained(
-            base_model,
-            ADAPTER_ID,
-            dtype=dtype
-        )
-
-        logger.info("Merging LoRA weights …")
-        model = peft_model.merge_and_unload()
         if DEVICE == "cpu":
             model = model.to(DEVICE)
         model.eval()
@@ -159,7 +148,7 @@ def health():
         "model": "loaded" if model_loaded else ("error" if load_error else "loading"),
         "load_error": load_error,
         "device": DEVICE,
-        "base_model": BASE_MODEL_ID,
+        "model_id": MODEL_ID,
     }
 
 
